@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dispatch Merkezi — TÜBİTAK</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0f1117;--bg2:#1a1d27;--bg3:#222536;--border:#2e3248;--text:#e8eaf6;--text2:#9198b8;--text3:#555e7a;--red:#ef4444;--red2:#7f1d1d;--amber:#f59e0b;--blue:#3b82f6;--green:#22c55e;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+.dp{display:grid;grid-template-columns:380px 1fr;height:100vh;}
+.sidebar{display:flex;flex-direction:column;background:var(--bg2);border-right:1px solid var(--border);overflow:hidden;}
+.topbar{padding:14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.brand-icon{width:32px;height:32px;border-radius:8px;background:var(--red);display:flex;align-items:center;justify-content:center;}
+.brand-icon svg{width:16px;height:16px;}
+.brand-name{font-size:14px;font-weight:600;color:var(--text);}
+.brand-sub{font-size:11px;color:var(--text3);}
+.conn-row{display:flex;align-items:center;justify-content:space-between;}
+.live-pill{display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:99px;padding:4px 10px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#555;}
+.live-dot.on{background:var(--green);animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.live-text{font-size:11px;color:var(--text2);}
+.clock-text{font-size:11px;color:var(--text3);font-family:monospace;}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px;}
+.stat{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;}
+.stat-v{font-size:20px;font-weight:700;color:var(--text);}
+.stat-v.r{color:var(--red);}
+.stat-v.a{color:var(--amber);}
+.stat-l{font-size:10px;color:var(--text3);margin-top:2px;}
+.filters{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:5px;flex-shrink:0;}
+.filt{font-size:11px;padding:4px 12px;border-radius:99px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--text2);font-family:inherit;transition:all .12s;}
+.filt.on{background:var(--text);color:var(--bg);border-color:var(--text);}
+.alist{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px;}
+.alist::-webkit-scrollbar{width:4px;}
+.alist::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+.ac{background:var(--bg3);border:1px solid var(--border);border-left:3px solid transparent;border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .12s;}
+.ac:hover{border-color:var(--text3);}
+.ac.sel{background:#1e2235;border-color:var(--blue);border-left-color:var(--red);}
+.ac.ta{border-left-color:var(--red);}
+.ac.td{border-left-color:var(--amber);}
+.ac.tt{border-left-color:var(--blue);}
+.ac-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.ac-name{font-size:13px;font-weight:600;color:var(--text);}
+.ac-time{font-size:10px;color:var(--text3);font-family:monospace;}
+.ac-addr{font-size:11px;color:var(--text2);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ac-bot{display:flex;align-items:center;justify-content:space-between;}
+.badge{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;}
+.ba{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);}
+.bd{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3);}
+.bt{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3);}
+.ac-phone{font-size:10px;color:var(--text3);}
+.empty{padding:40px;text-align:center;color:var(--text3);font-size:13px;}
+.map-side{display:flex;flex-direction:column;}
+.map-top{padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.map-top h3{font-size:13px;font-weight:600;color:var(--text);}
+.last-upd{font-size:10px;color:var(--text3);font-family:monospace;}
+.detail{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 14px;display:none;flex-shrink:0;overflow-y:auto;max-height:55vh;}
+.detail.show{display:block;}
+.det-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.det-name{font-size:14px;font-weight:700;color:var(--text);}
+.det-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;}
+.addr-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.addr-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.addr-card-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.dot-home{width:6px;height:6px;border-radius:50%;background:#a78bfa;}
+.dot-gps{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.addr-line{font-size:12px;color:var(--text);line-height:1.6;}
+.addr-sub{font-size:11px;color:var(--text2);margin-top:3px;}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.det-field label{font-size:10px;color:var(--text3);display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em;}
+.det-field span{font-size:12px;color:var(--text);}
+.det-divider{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px;padding-top:8px;border-top:1px solid var(--border);}
+.det-note{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text2);line-height:1.5;display:none;margin-bottom:8px;}
+.det-actions{display:flex;gap:6px;}
+.det-btn{flex:1;padding:7px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--text2);font-family:inherit;transition:all .12s;}
+.det-btn:hover{background:var(--bg3);color:var(--text);}
+.det-btn.danger{border-color:var(--red2);color:#fca5a5;}
+.det-btn.danger:hover{background:var(--red2);}
+#map{flex:1;min-height:0;}
+.notif{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--red);color:white;font-size:12px;font-weight:600;padding:6px 16px;border-radius:99px;z-index:1000;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.notif.show{opacity:1;}
+.toast{position:fixed;bottom:16px;right:16px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;color:var(--text);z-index:9999;transform:translateY(60px);opacity:0;transition:all .22s;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.ok{border-color:var(--green);color:var(--green);}
+.toast.err{border-color:var(--red);color:#fca5a5;}
+</style>
+</head>
+<body>
+<div class="dp">
+  <div class="sidebar">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 0115.17 4 2 2 0 0117.14 2h3a2 2 0 012 1.72 12.84 12.84 0 01.7 3.43 12.74 12.74 0 01-3.92 9.77z"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">Dispatch Merkezi</div>
+          <div class="brand-sub">TÜBİTAK Acil Alarm Sistemi</div>
+        </div>
+      </div>
+      <div class="conn-row">
+        <div class="live-pill">
+          <div class="live-dot" id="ldot"></div>
+          <span class="live-text" id="conn-text">Bağlanıyor...</span>
+        </div>
+        <span class="clock-text" id="clock">--:--:--</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-v" id="s-total">0</div><div class="stat-l">Toplam</div></div>
+        <div class="stat"><div class="stat-v r" id="s-acil">0</div><div class="stat-l">Acil</div></div>
+        <div class="stat"><div class="stat-v a" id="s-dikkat">0</div><div class="stat-l">Dikkat</div></div>
+      </div>
+    </div>
+    <div class="filters">
+      <button class="filt on" onclick="setFilter('hepsi',this)">Hepsi</button>
+      <button class="filt" onclick="setFilter('acil',this)">Acil</button>
+      <button class="filt" onclick="setFilter('dikkat',this)">Dikkat</button>
+      <button class="filt" onclick="setFilter('test',this)">Test</button>
+    </div>
+    <div class="alist" id="alist"><div class="empty" id="empty">Henüz alarm yok</div></div>
+  </div>
+
+  <div class="map-side" style="position:relative;">
+    <div class="map-top">
+      <h3>Canlı Harita</h3>
+      <span class="last-upd" id="last-upd">—</span>
+    </div>
+    <div class="detail" id="detail">
+      <div class="det-head">
+        <span class="det-name" id="det-name">—</span>
+        <button class="det-close" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="addr-cards">
+        <div class="addr-card">
+          <div class="addr-card-label"><div class="dot-home"></div>Ev Adresi</div>
+          <div class="addr-line" id="det-ev-adres">—</div>
+          <div class="addr-sub" id="det-ev-extra"></div>
+        </div>
+        <div class="addr-card">
+          <div class="addr-card-label"><div class="dot-gps"></div>Anlık Konum</div>
+          <div class="addr-line" id="det-gps-adres">—</div>
+          <div class="addr-sub" id="det-gps-coord">—</div>
+        </div>
+      </div>
+      <div class="det-grid">
+        <div class="det-field"><label>Telefon</label><span id="det-phone">—</span></div>
+        <div class="det-field"><label>Tip</label><span id="det-type">—</span></div>
+        <div class="det-field"><label>Zaman</label><span id="det-time">—</span></div>
+        <div class="det-field"><label>Koordinat</label><span id="det-coord">—</span></div>
+      </div>
+      <div class="det-divider">Acil Kişi</div>
+      <div class="det-grid">
+        <div class="det-field"><label>Ad Soyad</label><span id="det-acil-ad">—</span></div>
+        <div class="det-field"><label>Telefon</label><span id="det-acil-tel">—</span></div>
+      </div>
+      <div class="det-note" id="det-note"></div>
+      <div class="det-actions">
+        <button class="det-btn" onclick="focusMap()">Haritada göster</button>
+        <button class="det-btn danger" onclick="deleteAlarm()">Kaydı sil</button>
+      </div>
+    </div>
+    <div class="notif" id="notif">Yeni alarm!</div>
+    <div id="map"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const FB="https://tubitak-v1-default-rtdb.europe-west1.firebasedatabase.app";
+let map,markers={},alarms={},known=new Set(),selId=null,filter='hepsi';
+// stacking: isim → {repId, count, firstTs}
+const dupTracker={};
+
+function istTime(){return new Date().toLocaleTimeString('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+function istDateTime(){return new Date().toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'});}
+setInterval(()=>{document.getElementById('clock').textContent=istTime();},1000);
+
+function initMap(){
+  map=L.map('map').setView([38.42,27.14],10);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CartoDB',subdomains:'abcd',maxZoom:19}).addTo(map);
+}
+
+function makeIcon(type){
+  const c=type==='acil'?'#ef4444':type==='dikkat'?'#f59e0b':'#3b82f6';
+  return L.divIcon({html:`<div style="width:13px;height:13px;border-radius:50%;background:${c};border:2.5px solid white;box-shadow:0 0 6px ${c}99;"></div>`,className:'',iconSize:[13,13],iconAnchor:[6,6]});
+}
+
+function typeLabel(t){return t==='acil'?'Acil':t==='dikkat'?'Dikkat':'Test';}
+function badgeClass(t){return t==='acil'?'ba':t==='dikkat'?'bd':'bt';}
+function typeClass(t){return t==='acil'?'ta':t==='dikkat'?'td':'tt';}
+
+function formatEvAdres(d){
+  const parts=[];
+  if(d.address) parts.push(d.address);
+  if(d.ilce) parts.push(d.ilce);
+  if(d.il) parts.push(d.il);
+  return parts.join(', ')||'—';
+}
+
+async function reverseGeocode(lat,lng){
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=tr`);
+    const data=await res.json();
+    const a=data.address||{};
+    const parts=[];
+    if(a.road||a.pedestrian||a.path) parts.push(a.road||a.pedestrian||a.path);
+    if(a.house_number) parts[0]=(parts[0]||'')+' No:'+a.house_number;
+    if(a.neighbourhood||a.suburb||a.quarter) parts.push(a.neighbourhood||a.suburb||a.quarter);
+    if(a.city_district||a.town||a.district) parts.push(a.city_district||a.town||a.district);
+    if(a.city||a.province||a.state) parts.push(a.city||a.province||a.state);
+    return parts.filter(Boolean).join(', ')||data.display_name||'—';
+  }catch{return 'Adres alınamadı';}
+}
+
+function renderCard(id,d,count){
+  let card=document.getElementById('c-'+id);
+  const isNew=!card;
+  if(isNew){card=document.createElement('div');card.id='c-'+id;card.onclick=()=>selectAlarm(id);}
+  card.className=`ac ${typeClass(d.type)}${selId===id?' sel':''}`;
+  const evAdres=formatEvAdres(d);
+  const sb=(count&&count>1)?`<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;margin-left:5px;">×${count}</span>`:'';
+  card.innerHTML=`<div class="ac-top"><span class="ac-name">${d.name||'Bilinmiyor'}${sb}</span><span class="ac-time">${d.arrivalTime||'—'}</span></div><div class="ac-addr">${evAdres}</div><div class="ac-bot"><span class="badge ${badgeClass(d.type)}">${typeLabel(d.type)}</span><span class="ac-phone">${d.phone||''}</span></div>`;
+  document.getElementById('empty')?.remove();
+  if(isNew) document.getElementById('alist').prepend(card);
+  applyFilter();
+}
+
+function renderMarker(id,d){
+  if(markers[id]) map.removeLayer(markers[id]);
+  const lat=parseFloat(d.lat),lng=parseFloat(d.lng);
+  if(isNaN(lat)||isNaN(lng)) return;
+  markers[id]=L.marker([lat,lng],{icon:makeIcon(d.type)}).addTo(map)
+    .bindPopup(`<div style="font-size:12px;line-height:1.6;"><b>${d.name||'?'}</b><br>${typeLabel(d.type)}<br>${d.phone||''}</div>`)
+    .on('click',()=>selectAlarm(id));
+}
+
+async function selectAlarm(id){
+  selId=id;
+  document.querySelectorAll('.ac').forEach(c=>c.classList.remove('sel'));
+  document.getElementById('c-'+id)?.classList.add('sel');
+  const d=alarms[id];if(!d) return;
+
+  document.getElementById('det-name').textContent=d.name||'—';
+  document.getElementById('det-phone').textContent=d.phone||'—';
+  document.getElementById('det-type').textContent=typeLabel(d.type);
+  document.getElementById('det-time').textContent=d.arrivalTime||'—';
+
+  document.getElementById('det-ev-adres').textContent=formatEvAdres(d);
+  const extra=[];
+  if(d.binaNo) extra.push('Bina: '+d.binaNo);
+  if(d.daireNo) extra.push('Daire: '+d.daireNo);
+  const extraEl=document.getElementById('det-ev-extra');
+  extraEl.textContent=extra.join(' | ');
+  extraEl.style.display=extra.length?'block':'none';
+
+  const lat=parseFloat(d.lat),lng=parseFloat(d.lng);
+  if(!isNaN(lat)&&!isNaN(lng)){
+    document.getElementById('det-coord').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    document.getElementById('det-gps-coord').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    document.getElementById('det-gps-adres').textContent='Yükleniyor...';
+    reverseGeocode(lat,lng).then(a=>document.getElementById('det-gps-adres').textContent=a);
+  } else {
+    document.getElementById('det-gps-adres').textContent='Konum yok';
+    document.getElementById('det-gps-coord').textContent='—';
+    document.getElementById('det-coord').textContent='—';
+  }
+
+  document.getElementById('det-acil-ad').textContent=d.acilKisi||d.acilAd||'—';
+  document.getElementById('det-acil-tel').textContent=d.acilTel||'—';
+
+  const n=document.getElementById('det-note');
+  if(d.note){n.textContent=d.note;n.style.display='block';}else n.style.display='none';
+  document.getElementById('detail').classList.add('show');
+  focusMap();
+}
+
+function focusMap(){
+  if(!selId||!markers[selId]) return;
+  const d=alarms[selId];if(!d||!d.lat) return;
+  map.invalidateSize();
+  setTimeout(()=>{map.setView([parseFloat(d.lat),parseFloat(d.lng)],15,{animate:true});markers[selId].openPopup();},80);
+}
+
+function closeDetail(){
+  document.getElementById('detail').classList.remove('show');
+  selId=null;
+  document.querySelectorAll('.ac').forEach(c=>c.classList.remove('sel'));
+}
+
+async function deleteAlarm(){
+  if(!selId) return;
+  try{
+    // Bu karta ait tüm stacked id'leri bul
+    const repId=selId;
+    const idsToDelete=new Set([repId]);
+    // dupTracker'da bu repId'ye ait stack var mı?
+    let trackerKey=null;
+    Object.entries(dupTracker).forEach(([key,tr])=>{
+      if(tr.repId===repId){
+        trackerKey=key;
+        // Stack'teki tüm id'leri de sil
+        Object.keys(alarms).forEach(id=>{
+          const name=(alarms[id]?.name||'?').trim().toLowerCase();
+          if(name===key) idsToDelete.add(id);
+        });
+      }
+    });
+    // Hepsini Firebase'den sil
+    await Promise.all([...idsToDelete].map(id=>fetch(`${FB}/alarms/${id}.json`,{method:'DELETE'})));
+    // Local temizlik
+    idsToDelete.forEach(id=>{
+      delete alarms[id];
+      known.delete(id);
+      if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}
+    });
+    if(trackerKey) delete dupTracker[trackerKey];
+    document.getElementById('c-'+repId)?.remove();
+    if(!document.querySelector('.ac')) document.getElementById('alist').innerHTML='<div class="empty" id="empty">Henüz alarm yok</div>';
+    closeDetail();updateStats();showToast('Kayıt silindi','ok');
+  }catch(e){showToast('Silme başarısız','err');}
+}
+
+function setFilter(f,btn){filter=f;document.querySelectorAll('.filt').forEach(b=>b.classList.remove('on'));btn.classList.add('on');applyFilter();}
+function applyFilter(){document.querySelectorAll('.ac').forEach(card=>{const id=card.id.replace('c-','');const d=alarms[id];if(!d) return;card.style.display=(filter==='hepsi'||d.type===filter)?'block':'none';});}
+
+function updateStats(){
+  // Toplam kart sayısı — stacked olanlar tek kart = 1 kişi
+  const cards=[...document.querySelectorAll('.ac')];
+  const all=cards.map(c=>alarms[c.id.replace('c-','')]).filter(Boolean);
+  document.getElementById('s-total').textContent=cards.length;
+  document.getElementById('s-acil').textContent=all.filter(a=>a.type==='acil').length;
+  document.getElementById('s-dikkat').textContent=all.filter(a=>a.type==='dikkat').length;
+}
+
+function showNotif(){const n=document.getElementById('notif');n.classList.add('show');setTimeout(()=>n.classList.remove('show'),2500);}
+
+async function poll(){
+  const dot=document.getElementById('ldot'),ct=document.getElementById('conn-text');
+  try{
+    const res=await fetch(`${FB}/alarms.json`);
+    if(!res.ok) throw new Error();
+    const data=await res.json();
+    dot.classList.add('on');ct.textContent='Canlı';
+    document.getElementById('last-upd').textContent='Son: '+istTime();
+    if(data){
+      const now=Date.now();
+      let hasNew=false;
+      Object.entries(data).forEach(([id,val])=>{
+        // arrivalTime: Firebase'den geliyorsa kullan, önceden stamp'lendiyse koru, ilk görülüyorsa stamp'le
+        if(!val.arrivalTime) val.arrivalTime=alarms[id]?.arrivalTime||(known.has(id)?'—':istDateTime());
+        alarms[id]=val;
+        if(!known.has(id)){
+          known.add(id);
+          const key=(val.name||'?').trim().toLowerCase();
+          const cur=dupTracker[key];
+          if(cur&&(now-cur.firstTs)<120000){
+            // Aynı kişi, 2 dk içinde → stack
+            cur.count++;
+            renderCard(cur.repId,alarms[cur.repId],cur.count);
+            renderMarker(cur.repId,val);
+          } else {
+            // Yeni gerçek alarm
+            dupTracker[key]={repId:id,count:1,firstTs:now};
+            renderCard(id,val,1);
+            renderMarker(id,val);
+            hasNew=true;
+          }
+        }
+      });
+      if(hasNew){updateStats();showNotif();}
+      Object.keys(alarms).forEach(id=>{if(!data[id]){delete alarms[id];known.delete(id);document.getElementById('c-'+id)?.remove();if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}}});
+      updateStats();
+    } else {
+      alarms={};known=new Set();Object.keys(dupTracker).forEach(k=>delete dupTracker[k]);
+      document.getElementById('alist').innerHTML='<div class="empty" id="empty">Henüz alarm yok</div>';
+      updateStats();
+    }
+  }catch{dot.classList.remove('on');ct.textContent='Bağlantı yok';}
+  setTimeout(poll,5000);
+}
+
+function showToast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');setTimeout(()=>t.className='toast',2600);}
+window.addEventListener('load',()=>{initMap();poll();});
+</script>
+</body>
+</html>
