@@ -367,14 +367,15 @@ async function poll(){
           known.add(id);
           const key=(val.name||'?').trim().toLowerCase();
           const cur=dupTracker[key];
-          if(cur&&(now-cur.firstTs)<120000){
-            // Aynı kişi, 2 dk içinde → stack
+          // 20 sn içinde aynı kişiden gelen → stack, sonrası yeni kart
+          if(cur&&!cur.closed&&(now-cur.firstTs)<20000){
             cur.count++;
             renderCard(cur.repId,alarms[cur.repId],cur.count);
             renderMarker(cur.repId,val);
           } else {
-            // Yeni gerçek alarm
-            dupTracker[key]={repId:id,count:1,firstTs:now};
+            // Yeni kart — önceki grubu kapat
+            if(cur) cur.closed=true;
+            dupTracker[key]={repId:id,count:1,firstTs:now,closed:false};
             renderCard(id,val,1);
             renderMarker(id,val);
             hasNew=true;
