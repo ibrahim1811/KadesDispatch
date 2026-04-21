@@ -152,6 +152,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
         <div class="det-field"><label>Zaman</label><span id="det-time">—</span></div>
         <div class="det-field"><label>Koordinat</label><span id="det-coord">—</span></div>
       </div>
+      <div class="det-divider">Kişisel Bilgiler</div>
+      <div class="det-grid">
+        <div class="det-field"><label>Kan Grubu</label><span id="det-kan">—</span></div>
+        <div class="det-field"><label>Cinsiyet</label><span id="det-cinsiyet">—</span></div>
+        <div class="det-field"><label>Medeni Durum</label><span id="det-medeni">—</span></div>
+      </div>
       <div class="det-divider">Acil Kişi</div>
       <div class="det-grid">
         <div class="det-field"><label>Ad Soyad</label><span id="det-acil-ad">—</span></div>
@@ -195,7 +201,8 @@ function typeClass(t){return t==='acil'?'ta':t==='dikkat'?'td':'tt';}
 
 function formatEvAdres(d){
   const parts=[];
-  if(d.address) parts.push(d.address);
+  if(d.evAdresi) parts.push(d.evAdresi);
+  else if(d.address) parts.push(d.address);
   if(d.ilce) parts.push(d.ilce);
   if(d.il) parts.push(d.il);
   return parts.join(', ')||'—';
@@ -269,6 +276,9 @@ async function selectAlarm(id){
     document.getElementById('det-coord').textContent='—';
   }
 
+  document.getElementById('det-kan').textContent=d.kanGrubu||'—';
+  document.getElementById('det-cinsiyet').textContent=d.cinsiyet||'—';
+  document.getElementById('det-medeni').textContent=d.medeniDurum||'—';
   document.getElementById('det-acil-ad').textContent=d.acilKisi||d.acilAd||'—';
   document.getElementById('det-acil-tel').textContent=d.acilTel||'—';
 
