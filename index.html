@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dispatch Merkezi — TÜBİTAK</title>
+<title>AKDAM Çağrı Paneli — AKDAM</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -98,8 +98,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
           <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 0115.17 4 2 2 0 0117.14 2h3a2 2 0 012 1.72 12.84 12.84 0 01.7 3.43 12.74 12.74 0 01-3.92 9.77z"/></svg>
         </div>
         <div>
-          <div class="brand-name">Dispatch Merkezi</div>
-          <div class="brand-sub">TÜBİTAK Acil Alarm Sistemi</div>
+          <div class="brand-name">AKDAM Çağrı Paneli</div>
+          <div class="brand-sub">AKDAM Acil Alarm Sistemi</div>
         </div>
       </div>
       <div class="conn-row">
@@ -181,6 +181,7 @@ let map,markers={},alarms={},known=new Set(),selId=null,filter='hepsi';
 // stacking: isim → {repId, count, firstTs}
 const dupTracker={};
 
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function istTime(){return new Date().toLocaleTimeString('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 function istDateTime(){return new Date().toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'});}
 setInterval(()=>{document.getElementById('clock').textContent=istTime();},1000);
@@ -210,7 +211,11 @@ function formatEvAdres(d){
 
 async function reverseGeocode(lat,lng){
   try{
-    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=tr`);
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),6000);
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=tr`,{signal:ctrl.signal});
+    clearTimeout(timer);
+    if(!res.ok) return 'Adres alınamadı';
     const data=await res.json();
     const a=data.address||{};
     const parts=[];
@@ -230,7 +235,7 @@ function renderCard(id,d,count){
   card.className=`ac ${typeClass(d.type)}${selId===id?' sel':''}`;
   const evAdres=formatEvAdres(d);
   const sb=(count&&count>1)?`<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;margin-left:5px;">×${count}</span>`:'';
-  card.innerHTML=`<div class="ac-top"><span class="ac-name">${d.name||'Bilinmiyor'}${sb}</span><span class="ac-time">${d.arrivalTime||'—'}</span></div><div class="ac-addr">${evAdres}</div><div class="ac-bot"><span class="badge ${badgeClass(d.type)}">${typeLabel(d.type)}</span><span class="ac-phone">${d.phone||''}</span></div>`;
+  card.innerHTML=`<div class="ac-top"><span class="ac-name">${esc(d.name)||'Bilinmiyor'}${sb}</span><span class="ac-time">${esc(d.arrivalTime)||'—'}</span></div><div class="ac-addr">${esc(evAdres)}</div><div class="ac-bot"><span class="badge ${badgeClass(d.type)}">${typeLabel(d.type)}</span><span class="ac-phone">${esc(d.phone)}</span></div>`;
   document.getElementById('empty')?.remove();
   if(isNew) document.getElementById('alist').prepend(card);
   applyFilter();
@@ -241,7 +246,7 @@ function renderMarker(id,d){
   const lat=parseFloat(d.lat),lng=parseFloat(d.lng);
   if(isNaN(lat)||isNaN(lng)) return;
   markers[id]=L.marker([lat,lng],{icon:makeIcon(d.type)}).addTo(map)
-    .bindPopup(`<div style="font-size:12px;line-height:1.6;"><b>${d.name||'?'}</b><br>${typeLabel(d.type)}<br>${d.phone||''}</div>`)
+    .bindPopup(`<div style="font-size:12px;line-height:1.6;"><b>${esc(d.name)||'?'}</b><br>${typeLabel(d.type)}<br>${esc(d.phone)}</div>`)
     .on('click',()=>selectAlarm(id));
 }
 
@@ -269,7 +274,8 @@ async function selectAlarm(id){
     document.getElementById('det-coord').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById('det-gps-coord').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById('det-gps-adres').textContent='Yükleniyor...';
-    reverseGeocode(lat,lng).then(a=>document.getElementById('det-gps-adres').textContent=a);
+    const activeId=id;
+    reverseGeocode(lat,lng).then(a=>{if(selId===activeId)document.getElementById('det-gps-adres').textContent=a;});
   } else {
     document.getElementById('det-gps-adres').textContent='Konum yok';
     document.getElementById('det-gps-coord').textContent='—';
@@ -299,6 +305,7 @@ function closeDetail(){
   document.getElementById('detail').classList.remove('show');
   selId=null;
   document.querySelectorAll('.ac').forEach(c=>c.classList.remove('sel'));
+  setTimeout(()=>map.invalidateSize(),80);
 }
 
 async function deleteAlarm(){
@@ -382,8 +389,8 @@ async function poll(){
           }
         }
       });
-      if(hasNew){updateStats();showNotif();}
-      Object.keys(alarms).forEach(id=>{if(!data[id]){delete alarms[id];known.delete(id);document.getElementById('c-'+id)?.remove();if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}}});
+      if(hasNew) showNotif();
+      Object.keys(alarms).forEach(id=>{if(!data[id]){delete alarms[id];known.delete(id);document.getElementById('c-'+id)?.remove();if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}Object.entries(dupTracker).forEach(([k,tr])=>{if(tr.repId===id)delete dupTracker[k];});}});
       updateStats();
     } else {
       alarms={};known=new Set();Object.keys(dupTracker).forEach(k=>delete dupTracker[k]);
